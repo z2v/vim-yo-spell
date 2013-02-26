@@ -3,13 +3,13 @@ vim-yo-spell
 
 Плагин для [ёфикатора Евгения Миньковского][yo]
 
-# Установка
+## Установка
 
      ```bash
      echo 'Bundle "z2v/vim-yo-spell"' >> .vimrc
      ```
 
-# Настройка
+## Настройка
 
      ```vim
      let g:vim_yo_spell_dict = $HOME . '/.vim/bundle/vim-yo-spell/yo.txt'
