@@ -1,7 +1,5 @@
 ## -*- coding: utf-8 -*-
 import vim
-yo_path = vim.eval('g:vim_yo_spell_dict')
-base_encoding = "utf-8"
 
 ## Import part {{{1
 try: import text
@@ -17,18 +15,6 @@ except AttributeError:
 
 import shelve, os, os.path
 
-## }}}
-## Initialize part {{{1
-## Definitions {{{2
-## vim buffer
-buffer = text.Text()
-
-## Regular expression
-# unicode flag put into compile function automatically
-E_WORD = buffer.re.compile(ur"\b\w*[\u0435\u0415]\w*\b")
-
-_exit = False
-
 def fix_case(first, second):
     """\
     fix_case(first, second) -> string or None
@@ -40,10 +26,9 @@ def fix_case(first, second):
     elif first.istitle(): return second.title()
     elif first.isupper(): return second.upper()
 
-def read_dat(yo_path):
+def read_dat(yo_path, encoding):
     print unicode("Подождите пока я зачитаю базу %(yo)s.dat, это недолго...\n"
-            % {"yo":yo_path},
-            "utf-8").encode(buffer.encoding)
+            % {"yo":yo_path}, "utf-8").encode(encoding)
     sh = shelve.open(yo_path+".dat")
     MAY_BE_YO = sh["may_be_yo"]
     ONLY_YO   = sh["only_yo"]
@@ -82,21 +67,23 @@ def repare_txt(MAY_BE_YO, ONLY_YO, yo_path):
     yo_txt = file(yo_path+".txt", "wt")
     yo_list = map(lambda x: u"* "+x, MAY_BE_YO.values()) + ONLY_YO.values()
     yo_list.sort(yo_cmp)
-    yo_txt.write("\n".join(yo_list).encode(base_encoding))
+    yo_txt.write("\n".join(yo_list).encode("utf-8"))
     yo_txt.close()
 
-def repare_dat(yo_path):
+## }}}
+
+def repare_dat(yo_path, encoding):
     print unicode("База %(yo)s.dat неготова к работе, возможно это первый\n"
             "запуск программы, или файл %(yo)s.txt новее %(yo)s.dat.\nНадо "
             "подождать, это может занять пару десятков секунд...\n" %
                     {"yo":yo_path},
-            "utf-8").encode(buffer.encoding)
+            "utf-8").encode(encoding)
     YO = unicode("ё", "utf-8")
     E  = unicode("е", "utf-8")
     LIST = file(yo_path+".txt", "rt").readlines()
     MAY_BE_YO, ONLY_YO = {}, {}
     for i in LIST:
-        i=unicode(i.strip(), base_encoding)
+        i=unicode(i.strip(), "utf-8")
         if i.startswith(u"*"):
             MAY_BE_YO[i[2:].replace(YO, E)] = i[2:]
         else:
@@ -109,66 +96,72 @@ def repare_dat(yo_path):
     sh.close()
     return MAY_BE_YO, ONLY_YO
 
-## }}}
 
-yo_path = os.path.splitext(yo_path)[0]
+def main():
+    yo_path = os.path.splitext(vim.eval('g:vim_yo_spell_dict'))[0]
 
-if (os.path.isfile(yo_path+".dat") and os.path.isfile(yo_path+".txt") and\
-        os.stat(yo_path+".dat").st_mtime >= os.stat(yo_path+".txt").st_mtime) or\
-        os.path.isfile(yo_path+".dat") and not os.path.isfile(yo_path+".txt"):
-    # Если есть yo.dat и yo.txt, причём yo.dat моложе
-    # или
-    # есть yo.dat, но нет yo.txt
+    buffer = text.Text()
+    E_WORD = buffer.re.compile(ur"\b\w*[\u0435\u0415]\w*\b")
 
-    if not "MAY_BE_YO" in dir() or not "ONLY_YO" in dir():
-        MAY_BE_YO, ONLY_YO = read_dat(yo_path)
+    _exit = False
 
-    if not os.path.isfile(yo_path+".txt"):
-        repare_txt(MAY_BE_YO, ONLY_YO, yo_path)
+    if (os.path.isfile(yo_path+".dat") and os.path.isfile(yo_path+".txt") and\
+            os.stat(yo_path+".dat").st_mtime >= os.stat(yo_path+".txt").st_mtime) or\
+            os.path.isfile(yo_path+".dat") and not os.path.isfile(yo_path+".txt"):
+        # Если есть yo.dat и yo.txt, причём yo.dat моложе
+        # или
+        # есть yo.dat, но нет yo.txt
 
-elif os.path.isfile(yo_path+".txt") and\
-     (not os.path.isfile(yo_path+".dat") or\
-     (   os.path.isfile(yo_path+".dat") and\
-         os.stat(yo_path+".dat").st_mtime < os.stat(yo_path+".txt").st_mtime)):
-    # Если есть yo.txt
-    # и
-    # нет yo.dat или он есть, но старый
+        if not "MAY_BE_YO" in dir() or not "ONLY_YO" in dir():
+            MAY_BE_YO, ONLY_YO = read_dat(yo_path, buffer.encoding)
 
-    MAY_BE_YO, ONLY_YO = repare_dat(yo_path)
+        if not os.path.isfile(yo_path+".txt"):
+            repare_txt(MAY_BE_YO, ONLY_YO, yo_path)
 
-else:
-    sys.stderr.write(unicode("Не обнаружено ни %(yo)s, ни %(yo)s"%{"yo":yo_path},
-        "utf-8").encode(buffer.encoding))
-    _exit = True
-yo, i, s, e = None, None, None, None
+    elif os.path.isfile(yo_path+".txt") and\
+        (not os.path.isfile(yo_path+".dat") or\
+        (   os.path.isfile(yo_path+".dat") and\
+            os.stat(yo_path+".dat").st_mtime < os.stat(yo_path+".txt").st_mtime)):
+        # Если есть yo.txt
+        # и
+        # нет yo.dat или он есть, но старый
 
-## }}}
-## Prepearing part {{{1
+        MAY_BE_YO, ONLY_YO = repare_dat(yo_path, buffer.encoding)
 
-if not _exit:
-    for i in buffer.re.finditer(E_WORD):
-        try:
-            yo = fix_case(i.mo.group(), ONLY_YO[i.mo.group().lower()])
-            if yo:
-                s,e = i.span()
-                buffer[s:e] = yo
-        except KeyError:
+    else:
+        import sys
+        sys.stderr.write(unicode("Не обнаружено ни %(yo)s, ни %(yo)s"%{"yo":yo_path},
+            "utf-8").encode(buffer.encoding))
+        _exit = True
+    yo, i, s, e = None, None, None, None
+
+    ## }}}
+    ## Prepearing part {{{1
+
+    if not _exit:
+        for i in buffer.re.finditer(E_WORD):
             try:
-                yo = fix_case(i.mo.group(), MAY_BE_YO[i.mo.group().lower()])
+                yo = fix_case(i.mo.group(), ONLY_YO[i.mo.group().lower()])
                 if yo:
                     s,e = i.span()
-                    buffer.replace_i(s,e,[yo])
+                    buffer[s:e] = yo
             except KeyError:
-                pass
-            except buffer.exceptions.CancelDialog:
-                break
-## }}}
-## del instraction. This is important for vim {{{1
+                try:
+                    yo = fix_case(i.mo.group(), MAY_BE_YO[i.mo.group().lower()])
+                    if yo:
+                        s,e = i.span()
+                        buffer.replace_i(s,e,[yo])
+                except KeyError:
+                    pass
+                except buffer.exceptions.CancelDialog:
+                    break
+    ## }}}
+    ## del instraction. This is important for vim {{{1
 
-del yo, s, e, buffer, i, yo_path, repare_txt, repare_dat, fix_case, yo_cmp
-del read_dat, base_encoding, E_WORD, _exit
-# we don't delete MAY_BE_YO, ONLY_YO: for futere sessions
+    #del yo, s, e, buffer, i, yo_path, repare_txt, repare_dat, fix_case, yo_cmp
+    #del read_dat, base_encoding, E_WORD, _exit
+    # we don't delete MAY_BE_YO, ONLY_YO: for futere sessions
 
-## }}}
+    ## }}}
 
 ## vim: fdm=marker

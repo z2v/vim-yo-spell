@@ -9,11 +9,9 @@ vim-yo-spell
 echo 'Bundle "z2v/vim-yo-spell"' >> .vimrc
 ```
 
-## Настройка
+## Использование
 
-```vim
-let g:vim_yo_spell_dict = $HOME . '/.vim/bundle/vim-yo-spell/yo.txt'
-nnoremap <Leader>yo :pyfile ~/.vim/bundle/vim-yo-spell/yo.py<CR>
-```
+Плагин определяет привязку (mapping) `<Leader>yo` для запуска функции
+ёфикации буфера.
 
 [yo]: http://python.anabar.ru/yo.htm
